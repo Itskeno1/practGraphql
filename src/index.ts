@@ -53,6 +53,7 @@ const typeDefs = gql`
 
     type Query {
         books: [Book]
+        book(id: ID): Book 
     }
     type Query {
         authors: [Author]
@@ -62,7 +63,13 @@ const typeDefs = gql`
 const resolvers = {
     Query: {
         books: () => books,
-        authors: () => authors
+        book: (_parent: any, args:any) => {
+            const bookId = args.id;
+            for(let book of books){
+                if(book.id == bookId) return book;
+            }
+        },
+        authors: () => authors // primero el nombre de la query y luego nombre del arreglo a retornar 
     }
 }
 
