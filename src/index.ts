@@ -3,24 +3,27 @@ import { ApolloServer } from '@apollo/server'
 import { startStandaloneServer } from '@apollo/server/standalone' 
 import { gql } from 'graphql-tag'
 
-const books = [
+const books: any = [
     {
         id: 1,
         title: 'The Awakening',
         author: 'Kate Chopin',
-        stock: 2
+        stock: 2,
+        price:10
     },
     {
         id: 2,
         title: 'City of Glass',
         author: 'Paul Auster',
-        stock: 13
+        stock: 13,
+        price:10
     },
     {
         id: 3,
         title: "The Great Gatsby",
         author: 'Paul Auster',
-        stock: 23
+        stock: 21,
+        price:10
     },
 ];
 
@@ -44,6 +47,7 @@ const typeDefs = gql`
         title: String
         author: String
         stock: Int
+        price: Float
     }
 
     type Author{
@@ -58,6 +62,15 @@ const typeDefs = gql`
     type Query {
         authors: [Author]
     }
+
+    input BookInput {
+        title:String
+        price:Float
+    }
+
+    type Mutation {
+        createBook(book: BookInput): Book
+    }
 `
  
 const resolvers = {
@@ -70,7 +83,22 @@ const resolvers = {
             }
         },
         authors: () => authors // primero el nombre de la query y luego nombre del arreglo a retornar 
+    },
+    Mutation: {
+        createBook:(__:void,args:any)=>{
+
+            const bookInput = args.book;
+
+            const book = {
+                id: books.length + 1,
+                title: bookInput.title,
+                price: bookInput.price
+            }
+            books.push(book);
+            return book;
+        }
     }
+
 }
 
 const server = new ApolloServer({
