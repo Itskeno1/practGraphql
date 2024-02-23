@@ -1,118 +1,121 @@
-import 'dotenv/config'
-import { ApolloServer } from '@apollo/server' 
-import { startStandaloneServer } from '@apollo/server/standalone' 
-import { gql } from 'graphql-tag'
+import 'dotenv/config';
+import { ApolloServer } from 'apollo-server';
+import { gql } from 'graphql-tag';
+import mongoose from 'mongoose';
 
-const books: any = [
-    {
-        id: 1,
-        title: 'The Awakening',
-        author: 'Kate Chopin',
-        stock: 2,
-        price:10
-    },
-    {
-        id: 2,
-        title: 'City of Glass',
-        author: 'Paul Auster',
-        stock: 13,
-        price:10
-    },
-    {
-        id: 3,
-        title: "The Great Gatsby",
-        author: 'Paul Auster',
-        stock: 21,
-        price:10
-    },
-];
+// Define los esquemas de Mongoose
+const bookSchema = new mongoose.Schema({
+    title: String,
+    author: String,
+    stock: Number,
+    price: Number
+});
 
-const authors = [
-    {
-        id:1,
-        name: "Eugenio"
-    },
-    {
-        id:2,
-        name:"Checo  Perez"
-    }
-]
+const authorSchema = new mongoose.Schema({
+    name: String
+});
 
-
+const BookModel = mongoose.model('Book', bookSchema);
+const AuthorModel = mongoose.model('Author', authorSchema);
 
 const typeDefs = gql`
-
-    type Book{
-        id: ID 
+    type Book {
+        id: ID
         title: String
         author: String
         stock: Int
         price: Float
     }
 
-    type Author{
+    type Author {
         id: ID
         name: String
     }
 
     type Query {
         books: [Book]
-        book(id: ID): Book 
-    }
-    type Query {
+        book(id: ID): Book
         authors: [Author]
     }
 
     input BookInput {
-        title:String
-        price:Float
+        title: String
+        author: String
+        stock: Int
+        price: Float
+    }
+
+    input UpdateBookInput {
+        id: ID!
+        title: String
+        stock: Int
+    }
+
+    input DeleteBookInput {
+        id: ID!
     }
 
     type Mutation {
         createBook(book: BookInput): Book
+        updateBook(book: UpdateBookInput): Book
+        deleteBook(book: DeleteBookInput): Book
     }
-`
- 
+`;
+
 const resolvers = {
     Query: {
-        books: () => books,
-        book: (_parent: any, args:any) => {
-            const bookId = args.id;
-            for(let book of books){
-                if(book.id == bookId) return book;
-            }
-        },
-        authors: () => authors // primero el nombre de la query y luego nombre del arreglo a retornar 
+        books: async () => await BookModel.find(),
+        book: async (_parent: any, args: any) => await BookModel.findById(args.id),
+        authors: async () => await AuthorModel.find()
     },
     Mutation: {
-        createBook:(__:void,args:any)=>{
-
-            const bookInput = args.book;
-
-            const book = {
-                id: books.length + 1,
-                title: bookInput.title,
-                price: bookInput.price
+        createBook: async (_: void, args: any) => {
+            const { title, author, stock, price } = args.book;
+            try {
+                const newBook = await BookModel.create({ title, author, stock, price });
+                return newBook;
+            } catch (error) {
+                console.error(error);
             }
-            books.push(book);
-            return book;
+           
+        },
+        updateBook: async (_: void, args: any) => {
+            const { id, title, stock } = args.book;
+            try {
+                const updatedBook = await BookModel.findByIdAndUpdate(id, { title, stock }, { new: true });
+                return updatedBook;
+            } catch (error) {
+                console.error(error);
+            }
+           
+        },
+        deleteBook: async (_: void, args: any) => {
+            try {
+                const deletedBook = await BookModel.findByIdAndDelete(args.book.id);
+                return deletedBook;
+            } catch (error) {
+                console.error(error);
+            }
+          
         }
     }
-
-}
+};
 
 const server = new ApolloServer({
     typeDefs,
     resolvers
-})
+});
 
 const PORT = parseInt(process.env.PORT || "3000");
 
-(async () =>{
-    const { url } = await startStandaloneServer(server, {
-        listen: {port: PORT}
-    });
-    console.log('corriendo ')
-})();
+(async () => {
+    try {
+        const db = await mongoose.connect(process.env.MONGODB_URI || 'MONGODB_URI= mongodb://127.0.0.1:27017/practgraph');
+        console.log("Database Connected", db.connection.name);
+    } catch (error) {
+        console.error(error);
+    }
 
-console.log("OK!")
+    const { url } = await server.listen(PORT);
+    console.log(`Server ready at ${url}`);
+})();
